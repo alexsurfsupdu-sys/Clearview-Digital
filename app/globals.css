@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+:root {
+  --background: #080c1a;
+  --foreground: #f8fbff;
+  --accent: #38bdf8;
+  --primary: #2563ff;
+  --primary-dark: #1d4ed8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+::selection {
+  background: rgba(56, 189, 248, 0.28);
+  color: white;
+}
+
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.section-heading {
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.06em;
+  text-wrap: balance;
+}
+
+.section-copy {
+  font-size: 1rem;
+  line-height: 1.9;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.secondary-link {
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  background: rgba(37, 99, 235, 0.14);
+  padding: 0.8rem 1.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.secondary-link:hover {
+  background: rgba(37, 99, 235, 0.24);
+}
+
+.form-control {
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.95rem 1rem;
+  color: white;
+  outline: none;
+}
+
+.form-control::placeholder {
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.form-control:focus {
+  border-color: rgba(37, 99, 235, 0.9);
+}
+
+.text-balance {
+  text-wrap: balance;
+}
