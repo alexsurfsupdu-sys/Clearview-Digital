@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} h-full scroll-smooth`}>
       <body className="min-h-full bg-[var(--background)] font-sans text-[var(--foreground)] antialiased">
         {children}
+        <Analytics />
       </body>
     </html>
   );
