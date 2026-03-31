@@ -19,7 +19,7 @@ export function Logo({ compact = false }: LogoProps) {
           fill="none"
           height="13"
           rx="1.5"
-          stroke="#38bdf8"
+          stroke="#183153"
           strokeWidth="2.2"
           transform="rotate(-45 1 20)"
           width="13"
@@ -30,7 +30,7 @@ export function Logo({ compact = false }: LogoProps) {
           fill="none"
           height="7"
           rx="0.8"
-          stroke="#38bdf8"
+          stroke="#183153"
           strokeWidth="1.8"
           transform="rotate(-45 9 20)"
           width="7"
@@ -39,11 +39,11 @@ export function Logo({ compact = false }: LogoProps) {
         />
       </svg>
       <span
-        className={`font-extrabold tracking-[-0.04em] text-white ${
+        className={`font-extrabold tracking-[-0.04em] text-slate-950 ${
           compact ? "text-lg" : "text-xl"
         }`}
       >
-        Clearview <span className="text-[var(--accent)]">Digital</span>
+        Clearview <span className="text-[var(--trust)]">Digital</span>
       </span>
     </div>
   );

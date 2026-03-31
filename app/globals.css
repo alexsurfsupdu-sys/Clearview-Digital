@@ -1,11 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #080c1a;
-  --foreground: #f8fbff;
-  --accent: #38bdf8;
-  --primary: #2563ff;
-  --primary-dark: #1d4ed8;
+  --background: #fbfbf9;
+  --foreground: #132238;
+  --surface: #f3f5f7;
+  --text-secondary: #475569;
+  --trust: #183153;
+  --accent: #f97316;
+  --primary: #f97316;
+  --primary-dark: #ea580c;
+  --border: #dbe2ea;
 }
 
 @theme inline {
@@ -37,12 +41,14 @@ textarea {
     border-color 160ms ease,
     background-color 160ms ease,
     color 160ms ease,
-    opacity 160ms ease;
+    opacity 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 ::selection {
-  background: rgba(56, 189, 248, 0.28);
-  color: white;
+  background: rgba(249, 115, 22, 0.18);
+  color: #0f172a;
 }
 
 .section-label {
@@ -53,53 +59,54 @@ textarea {
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--trust);
 }
 
 .section-heading {
-  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-size: clamp(2rem, 4vw, 2.9rem);
   font-weight: 900;
-  line-height: 1.08;
+  line-height: 1.06;
   letter-spacing: -0.06em;
   text-wrap: balance;
+  color: var(--trust);
 }
 
 .section-copy {
   font-size: 1rem;
-  line-height: 1.9;
-  color: rgba(255, 255, 255, 0.42);
+  line-height: 1.8;
+  color: var(--text-secondary);
 }
 
 .secondary-link {
-  border-radius: 999px;
-  border: 1px solid rgba(37, 99, 235, 0.28);
-  background: rgba(37, 99, 235, 0.14);
-  padding: 0.8rem 1.35rem;
+  padding: 0;
   font-size: 0.95rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--trust);
+  border-bottom: 1px solid rgba(51, 65, 85, 0.25);
 }
 
 .secondary-link:hover {
-  background: rgba(37, 99, 235, 0.24);
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.45);
 }
 
 .form-control {
   width: 100%;
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  background: #ffffff;
   padding: 0.95rem 1rem;
-  color: white;
+  color: var(--foreground);
   outline: none;
 }
 
 .form-control::placeholder {
-  color: rgba(255, 255, 255, 0.34);
+  color: #94a3b8;
 }
 
 .form-control:focus {
-  border-color: rgba(37, 99, 235, 0.9);
+  border-color: rgba(249, 115, 22, 0.9);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
 }
 
 .text-balance {
