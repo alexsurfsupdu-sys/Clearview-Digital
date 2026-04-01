@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Manager ops store (local / self-hosted)
+/data/manager-state.json
+/data/manager-state.json.tmp
