@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs/promises";
+import { createClient } from "redis";
 import { Redis } from "@upstash/redis";
 
 import type { ManagerPersistedState } from "./types";
@@ -11,7 +12,6 @@ let redisSingleton: Redis | null | undefined;
 
 /**
  * Upstash REST (HTTPS) — try names Vercel / Upstash / KV integrations use.
- * Ignores `redis://` style URLs (TCP); those need a different client.
  */
 function getUpstashRestCredentials(): { url: string; token: string } | null {
   const pick = (u: string | undefined, t: string | undefined) => {
@@ -29,7 +29,7 @@ function getUpstashRestCredentials(): { url: string; token: string } | null {
   );
 }
 
-function getRedis(): Redis | null {
+function getRestRedis(): Redis | null {
   if (redisSingleton !== undefined) return redisSingleton;
   const creds = getUpstashRestCredentials();
   if (!creds) {
@@ -45,9 +45,45 @@ function getRedis(): Redis | null {
   }
 }
 
-/** `redis` when Upstash env is set (Vercel Redis integration); otherwise local JSON file. */
+/** Vercel “Redis” integration: single `REDIS_URL` (redis:// or rediss://). */
+function getTcpRedisUrl(): string | null {
+  const url = process.env.REDIS_URL?.trim();
+  if (!url || url.startsWith("http")) return null;
+  if (!url.startsWith("redis://") && !url.startsWith("rediss://")) return null;
+  return url;
+}
+
+type TcpRedis = Awaited<ReturnType<typeof createClient>>;
+let tcpClient: TcpRedis | undefined;
+let tcpInitPromise: Promise<TcpRedis | null> | null = null;
+
+async function getTcpClient(): Promise<TcpRedis | null> {
+  const url = getTcpRedisUrl();
+  if (!url) return null;
+  if (tcpClient?.isOpen) return tcpClient;
+
+  if (!tcpInitPromise) {
+    tcpInitPromise = (async () => {
+      try {
+        const client = createClient({ url });
+        client.on("error", () => {});
+        await client.connect();
+        tcpClient = client;
+        return client;
+      } catch {
+        tcpInitPromise = null;
+        return null;
+      }
+    })();
+  }
+  return tcpInitPromise;
+}
+
+/** `redis` when REST or TCP Redis env is set; otherwise local file. */
 export function getPersistenceMode(): "redis" | "file" {
-  return getRedis() ? "redis" : "file";
+  if (getRestRedis()) return "redis";
+  if (getTcpRedisUrl()) return "redis";
+  return "file";
 }
 
 function resolveDataPath(): string {
@@ -85,12 +121,12 @@ async function writeManagerStateToFile(state: ManagerPersistedState): Promise<vo
   await fs.rename(tmp, file);
 }
 
-/** Read state: Upstash Redis on Vercel when linked; else local `data/manager-state.json`. */
+/** Read state: Upstash REST, then Vercel `REDIS_URL` (TCP), else file. */
 export async function readManagerState(): Promise<ManagerPersistedState> {
-  const r = getRedis();
-  if (r) {
+  const rest = getRestRedis();
+  if (rest) {
     try {
-      const raw = await r.get<string>(REDIS_KEY);
+      const raw = await rest.get<string>(REDIS_KEY);
       if (raw == null || raw === "") return getDefaultManagerState();
       const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
       return normalizeManagerState(parsed as unknown);
@@ -98,15 +134,36 @@ export async function readManagerState(): Promise<ManagerPersistedState> {
       return getDefaultManagerState();
     }
   }
+
+  const tcp = await getTcpClient();
+  if (tcp) {
+    try {
+      const raw = await tcp.get(REDIS_KEY);
+      if (raw == null || raw === "") return getDefaultManagerState();
+      return normalizeManagerState(JSON.parse(raw) as unknown);
+    } catch {
+      return getDefaultManagerState();
+    }
+  }
+
   return readManagerStateFromFile();
 }
 
-/** Write state to Redis or local file. */
+/** Write state to Redis (REST or TCP) or local file. */
 export async function writeManagerState(state: ManagerPersistedState): Promise<void> {
-  const r = getRedis();
-  if (r) {
-    await r.set(REDIS_KEY, JSON.stringify(state));
+  const payload = JSON.stringify(state);
+
+  const rest = getRestRedis();
+  if (rest) {
+    await rest.set(REDIS_KEY, payload);
     return;
   }
+
+  const tcp = await getTcpClient();
+  if (tcp) {
+    await tcp.set(REDIS_KEY, payload);
+    return;
+  }
+
   await writeManagerStateToFile(state);
 }
