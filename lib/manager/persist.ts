@@ -9,14 +9,35 @@ const REDIS_KEY = "cv:manager:state:v1";
 
 let redisSingleton: Redis | null | undefined;
 
+/**
+ * Upstash REST (HTTPS) — try names Vercel / Upstash / KV integrations use.
+ * Ignores `redis://` style URLs (TCP); those need a different client.
+ */
+function getUpstashRestCredentials(): { url: string; token: string } | null {
+  const pick = (u: string | undefined, t: string | undefined) => {
+    const url = u?.trim();
+    const token = t?.trim();
+    if (!url || !token) return null;
+    if (!url.startsWith("http")) return null;
+    return { url, token };
+  };
+
+  return (
+    pick(process.env.UPSTASH_REDIS_REST_URL, process.env.UPSTASH_REDIS_REST_TOKEN) ??
+    pick(process.env.KV_REST_API_URL, process.env.KV_REST_API_TOKEN) ??
+    pick(process.env.REDIS_URL, process.env.REDIS_TOKEN)
+  );
+}
+
 function getRedis(): Redis | null {
   if (redisSingleton !== undefined) return redisSingleton;
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+  const creds = getUpstashRestCredentials();
+  if (!creds) {
     redisSingleton = null;
     return null;
   }
   try {
-    redisSingleton = Redis.fromEnv();
+    redisSingleton = new Redis({ url: creds.url, token: creds.token });
     return redisSingleton;
   } catch {
     redisSingleton = null;
