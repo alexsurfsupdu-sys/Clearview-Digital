@@ -5,6 +5,8 @@ import type {
   AuditResult,
   Baseline,
   ClientAccount,
+  LeadItem,
+  LeadStage,
   ManagerPersistedState,
   TaskItem,
   SectionKey,
@@ -122,6 +124,33 @@ function normalizeClient(raw: unknown): ClientAccount | null {
   };
 }
 
+function normalizeLead(raw: unknown): LeadItem | null {
+  if (!raw || typeof raw !== "object") return null;
+  const l = raw as Partial<LeadItem>;
+  if (typeof l.id !== "string" || typeof l.name !== "string") return null;
+  const st = l.stage;
+  const stage: LeadStage =
+    st === "new" ||
+    st === "contacted" ||
+    st === "qualified" ||
+    st === "won" ||
+    st === "lost"
+      ? st
+      : "new";
+  return {
+    id: l.id,
+    name: l.name,
+    business: typeof l.business === "string" ? l.business : "",
+    email: typeof l.email === "string" ? l.email : "",
+    phone: typeof l.phone === "string" ? l.phone : "",
+    source: typeof l.source === "string" ? l.source : "",
+    stage,
+    notes: typeof l.notes === "string" ? l.notes : "",
+    nextStep: typeof l.nextStep === "string" ? l.nextStep : "",
+    createdAt: typeof l.createdAt === "string" ? l.createdAt : new Date().toISOString(),
+  };
+}
+
 function normalizeActivity(raw: unknown): ActivityEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const a = raw as Partial<ActivityEntry>;
@@ -181,6 +210,7 @@ export function getDefaultManagerState(): ManagerPersistedState {
     baseline: { ...defaultBaseline },
     tasks: defaultTasks.map((t) => ({ ...t })),
     clients: defaultClients.map((c) => ({ ...c })),
+    leads: [],
     activity: [
       {
         id: "seed",
@@ -200,6 +230,7 @@ export function normalizeManagerState(raw: unknown): ManagerPersistedState {
 
   const tasksKeyPresent = Object.prototype.hasOwnProperty.call(o, "tasks");
   const clientsKeyPresent = Object.prototype.hasOwnProperty.call(o, "clients");
+  const leadsKeyPresent = Object.prototype.hasOwnProperty.call(o, "leads");
   const activityKeyPresent = Object.prototype.hasOwnProperty.call(o, "activity");
 
   const tasksRaw = Array.isArray(o.tasks) ? o.tasks : [];
@@ -214,6 +245,12 @@ export function normalizeManagerState(raw: unknown): ManagerPersistedState {
     .filter(Boolean)
     .slice(0, 200) as ClientAccount[];
 
+  const leadsRaw = Array.isArray(o.leads) ? o.leads : [];
+  const leads = leadsRaw
+    .map(normalizeLead)
+    .filter(Boolean)
+    .slice(0, 300) as LeadItem[];
+
   const activityRaw = Array.isArray(o.activity) ? o.activity : [];
   const activity = activityRaw
     .map(normalizeActivity)
@@ -225,6 +262,7 @@ export function normalizeManagerState(raw: unknown): ManagerPersistedState {
     baseline: normalizeBaseline(o.baseline),
     tasks: tasksKeyPresent ? tasks : base.tasks,
     clients: clientsKeyPresent ? clients : base.clients,
+    leads: leadsKeyPresent ? leads : base.leads,
     activity: activityKeyPresent ? activity : base.activity,
     audit: normalizeAudit(o.audit),
   };

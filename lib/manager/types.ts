@@ -71,11 +71,27 @@ export type ActivityEntry = {
   tone: "neutral" | "info" | "warning" | "success";
 };
 
+export type LeadStage = "new" | "contacted" | "qualified" | "won" | "lost";
+
+export type LeadItem = {
+  id: string;
+  name: string;
+  business: string;
+  email: string;
+  phone: string;
+  source: string;
+  stage: LeadStage;
+  notes: string;
+  nextStep: string;
+  createdAt: string;
+};
+
 export type ManagerPersistedState = {
   version: 1;
   baseline: Baseline;
   tasks: TaskItem[];
   clients: ClientAccount[];
+  leads: LeadItem[];
   activity: ActivityEntry[];
   audit: AuditResult | null;
 };

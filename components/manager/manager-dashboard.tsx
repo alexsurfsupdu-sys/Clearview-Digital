@@ -11,6 +11,8 @@ import type {
   AuditResult,
   Baseline,
   ClientAccount,
+  LeadItem,
+  LeadStage,
   SectionKey,
   TaskItem,
   TaskPriority,
@@ -36,6 +38,7 @@ export function ManagerDashboard() {
   const [isRunningAudit, setIsRunningAudit] = useState(false);
   const [tasks, setTasks] = useState<TaskItem[]>(defaultTasks);
   const [clients, setClients] = useState<ClientAccount[]>(defaultClients);
+  const [leads, setLeads] = useState<LeadItem[]>([]);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [baselineOpen, setBaselineOpen] = useState(false);
   const [remoteReady, setRemoteReady] = useState(false);
@@ -70,6 +73,7 @@ export function ManagerDashboard() {
         setBaseline(data.baseline as Baseline);
         setTasks(data.tasks as TaskItem[]);
         setClients(data.clients as ClientAccount[]);
+        setLeads(Array.isArray(data.leads) ? (data.leads as LeadItem[]) : []);
         setActivity(Array.isArray(data.activity) ? (data.activity as ActivityEntry[]) : []);
         setAudit((data.audit as AuditResult | null) ?? null);
         setLoadError(null);
@@ -100,6 +104,7 @@ export function ManagerDashboard() {
             baseline,
             tasks,
             clients,
+            leads,
             activity: activity.slice(0, 40),
             audit,
           };
@@ -120,7 +125,7 @@ export function ManagerDashboard() {
       })();
     }, 500);
     return () => clearTimeout(t);
-  }, [baseline, tasks, clients, activity, audit, remoteReady]);
+  }, [baseline, tasks, clients, leads, activity, audit, remoteReady]);
 
   const pushActivity = useCallback((label: string, tone: ActivityEntry["tone"] = "neutral") => {
     setActivity((prev) => {
@@ -134,11 +139,15 @@ export function ManagerDashboard() {
     });
   }, []);
 
-  const clientById = useMemo(() => {
-    const m = new Map<string, ClientAccount>();
-    clients.forEach((c) => m.set(c.id, c));
-    return m;
-  }, [clients]);
+  const clientOptions = useMemo(
+    () => clients.map((c) => ({ id: c.id, name: c.name })),
+    [clients],
+  );
+
+  const openLeadsCount = useMemo(
+    () => leads.filter((l) => l.stage !== "won" && l.stage !== "lost").length,
+    [leads],
+  );
 
   const auditFailures = useMemo(
     () => audit?.checks.filter((c) => c.status === "fail") ?? [],
@@ -230,10 +239,10 @@ export function ManagerDashboard() {
               : ("neutral" as const),
       },
       {
-        label: "Lead trend (7d)",
-        value: "+8%",
-        hint: "Snapshot — connect CRM",
-        tone: "neutral" as const,
+        label: "Open leads",
+        value: String(openLeadsCount),
+        hint: "Pipeline (excludes won/lost)",
+        tone: openLeadsCount ? ("info" as const) : ("ok" as const),
       },
     ],
     [
@@ -242,6 +251,7 @@ export function ManagerDashboard() {
       clientsNeedingAttention.length,
       audit,
       auditFailures.length,
+      openLeadsCount,
     ],
   );
 
@@ -274,6 +284,12 @@ export function ManagerDashboard() {
       title: string;
       detail: string;
       suggest?: AgentRole;
+      taskTemplate?: {
+        title: string;
+        priority: TaskPriority;
+        assignee: AgentRole;
+        clientId?: string;
+      };
     };
     const signals: Sig[] = [];
 
@@ -289,12 +305,18 @@ export function ManagerDashboard() {
 
     for (const check of auditFailures) {
       if (check.status !== "fail") continue;
+      const spec = suggestedSpecialtyForAuditKey(check.key) ?? "Unassigned";
       signals.push({
         id: `signal-audit-${check.key}`,
         severity: "critical",
         title: `Homepage check failed: ${check.label}`,
         detail: check.detail,
-        suggest: suggestedSpecialtyForAuditKey(check.key),
+        suggest: spec === "Unassigned" ? undefined : spec,
+        taskTemplate: {
+          title: `Fix homepage: ${check.label}`,
+          priority: "high",
+          assignee: spec,
+        },
       });
     }
 
@@ -306,6 +328,11 @@ export function ManagerDashboard() {
         detail:
           "Assign each to a specialty (coding, visuals, maintenance, etc.) so specialist agents only pull their lane.",
         suggest: undefined,
+        taskTemplate: {
+          title: `Assign ${unassignedHot.length} urgent/high task(s) to specialties`,
+          priority: "urgent",
+          assignee: "Unassigned",
+        },
       });
     }
 
@@ -317,6 +344,11 @@ export function ManagerDashboard() {
         detail: overdueOpen.map((t) => t.title).slice(0, 3).join(" · ") +
           (overdueOpen.length > 3 ? "…" : ""),
         suggest: "Ops",
+        taskTemplate: {
+          title: `Review ${overdueOpen.length} overdue open task(s)`,
+          priority: "high",
+          assignee: "Ops",
+        },
       });
     }
 
@@ -327,6 +359,12 @@ export function ManagerDashboard() {
         title: `Client risk: ${c.name}`,
         detail: c.issueNote ?? "Marked as risk — review and stabilize.",
         suggest: "Maintenance",
+        taskTemplate: {
+          title: `Stabilize client: ${c.name}`,
+          priority: "urgent",
+          assignee: "Maintenance",
+          clientId: c.id,
+        },
       });
     }
 
@@ -337,6 +375,12 @@ export function ManagerDashboard() {
         title: `Client needs attention: ${c.name}`,
         detail: c.issueNote ?? "Follow up before it escalates.",
         suggest: "Ops",
+        taskTemplate: {
+          title: `Follow up: ${c.name}`,
+          priority: "normal",
+          assignee: "Ops",
+          clientId: c.id,
+        },
       });
     }
 
@@ -347,6 +391,12 @@ export function ManagerDashboard() {
         title: `${billingRiskClients.length} account${billingRiskClients.length === 1 ? "" : "s"} with billing flagged`,
         detail: billingRiskClients.map((c) => c.name).join(", "),
         suggest: "Ops",
+        taskTemplate: {
+          title: `Billing follow-up: ${billingRiskClients.map((c) => c.name).join(", ")}`,
+          priority: "high",
+          assignee: "Ops",
+          clientId: billingRiskClients[0]?.id,
+        },
       });
     }
 
@@ -564,6 +614,68 @@ export function ManagerDashboard() {
     pushActivity("Client added", "neutral");
   }
 
+  const addTaskFromSignal = useCallback(
+    (tpl: {
+      title: string;
+      priority: TaskPriority;
+      assignee: AgentRole;
+      clientId?: string;
+    }) => {
+      const id = crypto.randomUUID();
+      setTasks((prev) => [
+        {
+          id,
+          title: tpl.title.slice(0, 200),
+          priority: tpl.priority,
+          status: "pending",
+          assignee: tpl.assignee,
+          clientId: tpl.clientId ?? clients[0]?.id ?? "unlinked",
+        },
+        ...prev,
+      ]);
+      pushActivity(`Task from signal: ${tpl.title.slice(0, 80)}`, "info");
+    },
+    [clients, pushActivity],
+  );
+
+  function removeTask(id: string) {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+    pushActivity("Task removed", "neutral");
+  }
+
+  function removeClient(id: string) {
+    setClients((prev) => prev.filter((c) => c.id !== id));
+    setTasks((prev) =>
+      prev.map((t) => (t.clientId === id ? { ...t, clientId: "unlinked" } : t)),
+    );
+    pushActivity("Client removed", "info");
+  }
+
+  function addLead() {
+    const id = crypto.randomUUID();
+    setLeads((prev) => [
+      {
+        id,
+        name: "New lead",
+        business: "",
+        email: "",
+        phone: "",
+        source: "Website",
+        stage: "new",
+        notes: "",
+        nextStep: "",
+        createdAt: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+    pushActivity("Lead added", "neutral");
+  }
+
+  function removeLead(id: string) {
+    setLeads((prev) => prev.filter((l) => l.id !== id));
+    pushActivity("Lead removed", "neutral");
+  }
+
   if (loadError) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-4">
@@ -696,20 +808,34 @@ export function ManagerDashboard() {
             </div>
             <ul className="mt-6 divide-y divide-slate-100 rounded-lg border border-slate-100 bg-slate-50/80">
               {managerSignals.map((sig) => (
-                <li key={sig.id} className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
+                <li
+                  key={sig.id}
+                  className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <SignalSeverityBadge severity={sig.severity} />
                       <p className="text-sm font-medium text-slate-900">{sig.title}</p>
                     </div>
                     <p className="mt-1 text-sm leading-relaxed text-slate-600">{sig.detail}</p>
+                    {sig.suggest ? (
+                      <p className="mt-2 text-xs text-slate-500">
+                        <span className="font-medium text-slate-600">Suggested specialty:</span>{" "}
+                        {sig.suggest}
+                      </p>
+                    ) : null}
                   </div>
-                  {sig.suggest && (
-                    <p className="shrink-0 text-xs text-slate-500 sm:pt-0.5 sm:text-right">
-                      <span className="font-medium text-slate-600">Suggested specialty:</span>{" "}
-                      {sig.suggest}
-                    </p>
-                  )}
+                  <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+                    {sig.taskTemplate ? (
+                      <button
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+                        onClick={() => addTaskFromSignal(sig.taskTemplate!)}
+                        type="button"
+                      >
+                        Add task from signal
+                      </button>
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -779,12 +905,13 @@ export function ManagerDashboard() {
                 </button>
               </div>
 
-              <div className="hidden rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-slate-500 md:grid md:grid-cols-[1fr_88px_100px_100px_100px] md:gap-2 md:px-4">
+              <div className="hidden rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-slate-500 md:grid md:grid-cols-[1fr_88px_100px_100px_100px_72px] md:gap-2 md:px-4">
                 <span>Task</span>
                 <span>Priority</span>
                 <span>Status</span>
                 <span>Specialty</span>
                 <span className="text-right">Due</span>
+                <span className="text-right"> </span>
               </div>
               <div className="overflow-hidden rounded-b-xl border border-slate-200 bg-white shadow-sm md:rounded-t-none">
                 {tasks.length === 0 ? (
@@ -796,9 +923,10 @@ export function ManagerDashboard() {
                     {tasks.map((t) => (
                       <TaskRow
                         key={t.id}
-                        task={t}
-                        clientName={clientById.get(t.clientId)?.name ?? "—"}
+                        clientOptions={clientOptions}
                         onChange={updateTask}
+                        onRemove={() => removeTask(t.id)}
+                        task={t}
                       />
                     ))}
                   </ul>
@@ -836,18 +964,80 @@ export function ManagerDashboard() {
                       <th className="px-4 py-3 font-medium">Status</th>
                       <th className="hidden px-4 py-3 font-medium md:table-cell">Last update</th>
                       <th className="px-4 py-3 text-right font-medium">Billing</th>
+                      <th className="w-20 px-4 py-3 text-right font-medium"> </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {clients.length === 0 ? (
                       <tr>
-                        <td className="px-4 py-10 text-center text-sm text-slate-500" colSpan={5}>
+                        <td className="px-4 py-10 text-center text-sm text-slate-500" colSpan={6}>
                           No clients yet. Use &quot;Add client&quot; to create your real list.
                         </td>
                       </tr>
                     ) : (
                       clients.map((c) => (
-                        <ClientRow key={c.id} client={c} onChange={setClients} />
+                        <ClientRow
+                          key={c.id}
+                          client={c}
+                          onChange={setClients}
+                          onRemove={() => removeClient(c.id)}
+                        />
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section aria-labelledby="leads-heading">
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2
+                    id="leads-heading"
+                    className="text-lg font-semibold tracking-tight text-[var(--trust)]"
+                  >
+                    Leads pipeline
+                  </h2>
+                  <p className="mt-0.5 text-sm text-slate-600">
+                    Track inquiries and stages here. Same server store as tasks — not wired to your
+                    contact form yet.
+                  </p>
+                </div>
+                <button
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={addLead}
+                  type="button"
+                >
+                  Add lead
+                </button>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                      <th className="px-4 py-3 font-medium">Lead</th>
+                      <th className="hidden px-4 py-3 font-medium sm:table-cell">Contact</th>
+                      <th className="px-4 py-3 font-medium">Source</th>
+                      <th className="px-4 py-3 font-medium">Stage</th>
+                      <th className="hidden px-4 py-3 font-medium md:table-cell">Next step</th>
+                      <th className="w-20 px-4 py-3 text-right font-medium"> </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {leads.length === 0 ? (
+                      <tr>
+                        <td className="px-4 py-10 text-center text-sm text-slate-500" colSpan={6}>
+                          No leads yet. Add manually or connect the contact form later.
+                        </td>
+                      </tr>
+                    ) : (
+                      leads.map((l) => (
+                        <LeadRow
+                          key={l.id}
+                          lead={l}
+                          onChange={setLeads}
+                          onRemove={() => removeLead(l.id)}
+                        />
                       ))
                     )}
                   </tbody>
@@ -1266,12 +1456,14 @@ function StatusDot({ status }: { status: "pass" | "warn" | "fail" }) {
 
 function TaskRow({
   task,
-  clientName,
+  clientOptions,
   onChange,
+  onRemove,
 }: {
   task: TaskItem;
-  clientName: string;
+  clientOptions: Array<{ id: string; name: string }>;
   onChange: (id: string, patch: Partial<TaskItem>) => void;
+  onRemove: () => void;
 }) {
   const urgent = task.priority === "urgent" || task.priority === "high";
   const rowClass =
@@ -1282,14 +1474,29 @@ function TaskRow({
         : "";
 
   return (
-    <li className={`px-3 py-3 md:grid md:grid-cols-[1fr_88px_100px_100px_100px] md:items-center md:gap-2 md:px-4 ${rowClass}`}>
+    <li className={`px-3 py-3 md:grid md:grid-cols-[1fr_88px_100px_100px_100px_72px] md:items-center md:gap-2 md:px-4 ${rowClass}`}>
       <div className="min-w-0 md:pr-2">
         <input
           className="w-full border-0 bg-transparent p-0 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-0"
           onChange={(e) => onChange(task.id, { title: e.target.value })}
           value={task.title}
         />
-        <p className="mt-0.5 text-xs text-slate-500">{clientName}</p>
+        <label className="sr-only" htmlFor={`cl-${task.id}`}>
+          Linked client
+        </label>
+        <select
+          className="mt-2 w-full max-w-[220px] rounded-md border border-slate-200 bg-white py-1.5 pl-2 pr-6 text-xs text-slate-700"
+          id={`cl-${task.id}`}
+          onChange={(e) => onChange(task.id, { clientId: e.target.value })}
+          value={task.clientId}
+        >
+          <option value="unlinked">No client</option>
+          {clientOptions.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2 md:mt-0">
         <label className="sr-only" htmlFor={`p-${task.id}`}>
@@ -1351,8 +1558,17 @@ function TaskRow({
           value={task.due ?? ""}
         />
       </div>
+      <div className="mt-2 flex justify-end md:mt-0">
+        <button
+          className="text-xs font-medium text-rose-700 hover:text-rose-900"
+          onClick={onRemove}
+          type="button"
+        >
+          Remove
+        </button>
+      </div>
       {urgent && (
-        <p className="mt-2 text-[11px] font-medium uppercase tracking-wide text-rose-700 md:col-span-full md:mt-1">
+        <p className="mt-2 text-[11px] font-medium uppercase tracking-wide text-rose-700 md:col-span-6 md:mt-1">
           Escalated priority
         </p>
       )}
@@ -1363,9 +1579,11 @@ function TaskRow({
 function ClientRow({
   client,
   onChange,
+  onRemove,
 }: {
   client: ClientAccount;
   onChange: Dispatch<SetStateAction<ClientAccount[]>>;
+  onRemove: () => void;
 }) {
   function patch(p: Partial<ClientAccount>) {
     onChange((prev) => prev.map((c) => (c.id === client.id ? { ...c, ...p } : c)));
@@ -1443,6 +1661,101 @@ function ClientRow({
           type="button"
         >
           {client.billingCurrent ? "Current" : "Overdue"}
+        </button>
+      </td>
+      <td className="px-4 py-3 text-right align-top">
+        <button
+          className="text-xs font-medium text-rose-700 hover:text-rose-900"
+          onClick={onRemove}
+          type="button"
+        >
+          Remove
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+const LEAD_STAGES: LeadStage[] = ["new", "contacted", "qualified", "won", "lost"];
+
+function LeadRow({
+  lead,
+  onChange,
+  onRemove,
+}: {
+  lead: LeadItem;
+  onChange: Dispatch<SetStateAction<LeadItem[]>>;
+  onRemove: () => void;
+}) {
+  function patch(p: Partial<LeadItem>) {
+    onChange((prev) => prev.map((l) => (l.id === lead.id ? { ...l, ...p } : l)));
+  }
+
+  return (
+    <tr className="align-top">
+      <td className="px-4 py-3">
+        <input
+          className="w-full min-w-[6rem] border-0 bg-transparent p-0 text-sm font-medium text-slate-900 focus:ring-0"
+          onChange={(e) => patch({ name: e.target.value })}
+          placeholder="Name"
+          value={lead.name}
+        />
+        <input
+          className="mt-2 w-full border-0 bg-transparent p-0 text-xs text-slate-600 focus:ring-0"
+          onChange={(e) => patch({ business: e.target.value })}
+          placeholder="Business"
+          value={lead.business}
+        />
+      </td>
+      <td className="hidden px-4 py-3 sm:table-cell">
+        <input
+          className="w-full border-0 bg-transparent p-0 text-xs focus:ring-0"
+          onChange={(e) => patch({ email: e.target.value })}
+          placeholder="Email"
+          value={lead.email}
+        />
+        <input
+          className="mt-2 w-full border-0 bg-transparent p-0 text-xs focus:ring-0"
+          onChange={(e) => patch({ phone: e.target.value })}
+          placeholder="Phone"
+          value={lead.phone}
+        />
+      </td>
+      <td className="px-4 py-3">
+        <input
+          className="w-full border-0 bg-transparent p-0 text-xs focus:ring-0"
+          onChange={(e) => patch({ source: e.target.value })}
+          value={lead.source}
+        />
+      </td>
+      <td className="px-4 py-3">
+        <select
+          className="w-full min-w-[6.5rem] rounded-md border border-slate-200 bg-white py-1.5 pl-2 pr-4 text-xs font-medium"
+          onChange={(e) => patch({ stage: e.target.value as LeadStage })}
+          value={lead.stage}
+        >
+          {LEAD_STAGES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="hidden px-4 py-3 md:table-cell">
+        <input
+          className="w-full border-0 bg-transparent p-0 text-xs focus:ring-0"
+          onChange={(e) => patch({ nextStep: e.target.value })}
+          placeholder="Next step"
+          value={lead.nextStep}
+        />
+      </td>
+      <td className="px-4 py-3 text-right">
+        <button
+          className="text-xs font-medium text-rose-700 hover:text-rose-900"
+          onClick={onRemove}
+          type="button"
+        >
+          Remove
         </button>
       </td>
     </tr>

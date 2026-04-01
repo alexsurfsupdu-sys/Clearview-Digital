@@ -11,7 +11,7 @@ function isManagerProtectionEnabled(secret: string | undefined): secret is strin
   return Boolean(secret && secret.length >= 16);
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const secret = process.env.MANAGER_ACCESS_TOKEN;
   const path = request.nextUrl.pathname;
 
