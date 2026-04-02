@@ -794,6 +794,16 @@ export function ManagerDashboard() {
             </Link>
             <button
               className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+              onClick={async () => {
+                await fetch("/api/manager/login", { method: "DELETE", credentials: "include" });
+                window.location.href = "/manager/login";
+              }}
+              type="button"
+            >
+              Log out
+            </button>
+            <button
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
               onClick={() => setBaselineOpen((o) => !o)}
               type="button"
             >

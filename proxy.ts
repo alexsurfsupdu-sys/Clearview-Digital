@@ -45,10 +45,32 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isLegacyManager) {
-    return new NextResponse(null, { status: 404 });
+    // /manager/login — always public
+    if (path === "/manager/login" || path.startsWith("/manager/login/")) {
+      return NextResponse.next();
+    }
+    // /manager/dashboard — cookie-protected; redirect to login if missing
+    if (path === "/manager/dashboard" || path.startsWith("/manager/dashboard/")) {
+      const cookie = request.cookies.get(MANAGER_COOKIE_NAME)?.value;
+      const ok = await verifyManagerProof(secret, cookie);
+      if (!ok) {
+        return NextResponse.redirect(new URL("/manager/login", request.url));
+      }
+      return NextResponse.next();
+    }
+    // /manager root → redirect to dashboard or login depending on cookie
+    const cookie = request.cookies.get(MANAGER_COOKIE_NAME)?.value;
+    const ok = await verifyManagerProof(secret, cookie);
+    return NextResponse.redirect(
+      new URL(ok ? "/manager/dashboard" : "/manager/login", request.url),
+    );
   }
 
   if (isApi) {
+    // Login route is public (it sets the cookie)
+    if (path === "/api/manager/login" || path.startsWith("/api/manager/login/")) {
+      return NextResponse.next();
+    }
     if (path === "/api/manager/agent" || path.startsWith("/api/manager/agent/")) {
       return NextResponse.next();
     }
