@@ -1,6 +1,10 @@
 import type {
   ActivityEntry,
+  AgentMission,
   AgentRole,
+  AgentSpecialty,
+  AgentStatus,
+  AIManagerConfig,
   AuditCheck,
   AuditResult,
   Baseline,
@@ -8,6 +12,7 @@ import type {
   LeadItem,
   LeadStage,
   ManagerPersistedState,
+  MissionLogEntry,
   TaskItem,
   SectionKey,
 } from "./types";
@@ -204,6 +209,73 @@ function normalizeAudit(raw: unknown): AuditResult | null {
   };
 }
 
+const VALID_SPECIALTIES: AgentSpecialty[] = [
+  "CodeEngineer",
+  "Maintenance",
+  "ErrorDetector",
+  "EmailReviewer",
+  "CustomerSurveyor",
+  "ContentWriter",
+  "SEOAnalyst",
+  "AnalyticsAgent",
+];
+
+const VALID_AGENT_STATUSES: AgentStatus[] = [
+  "idle",
+  "queued",
+  "active",
+  "paused",
+  "done",
+  "error",
+];
+
+function normalizeMissionLog(raw: unknown): MissionLogEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((e): e is { at: string; message: string } =>
+      e && typeof e === "object" && typeof e.at === "string" && typeof e.message === "string",
+    )
+    .slice(0, 200);
+}
+
+function normalizeMission(raw: unknown): AgentMission | null {
+  if (!raw || typeof raw !== "object") return null;
+  const m = raw as Partial<AgentMission>;
+  if (typeof m.id !== "string" || typeof m.title !== "string") return null;
+  const specialty = VALID_SPECIALTIES.includes(m.specialty as AgentSpecialty)
+    ? (m.specialty as AgentSpecialty)
+    : "CodeEngineer";
+  const status = VALID_AGENT_STATUSES.includes(m.status as AgentStatus)
+    ? (m.status as AgentStatus)
+    : "queued";
+  const pr = m.priority;
+  return {
+    id: m.id,
+    specialty,
+    title: m.title,
+    brief: typeof m.brief === "string" ? m.brief : "",
+    status,
+    priority:
+      pr === "low" || pr === "normal" || pr === "high" || pr === "urgent" ? pr : "normal",
+    clientId: typeof m.clientId === "string" ? m.clientId : "",
+    createdAt: typeof m.createdAt === "string" ? m.createdAt : new Date().toISOString(),
+    startedAt: typeof m.startedAt === "string" ? m.startedAt : undefined,
+    completedAt: typeof m.completedAt === "string" ? m.completedAt : undefined,
+    log: normalizeMissionLog(m.log),
+    output: typeof m.output === "string" ? m.output : undefined,
+  };
+}
+
+function normalizeAIManagerConfig(raw: unknown): AIManagerConfig {
+  const defaults: AIManagerConfig = { enabled: true, autoAssign: false };
+  if (!raw || typeof raw !== "object") return defaults;
+  const c = raw as Partial<AIManagerConfig>;
+  return {
+    enabled: typeof c.enabled === "boolean" ? c.enabled : defaults.enabled,
+    autoAssign: typeof c.autoAssign === "boolean" ? c.autoAssign : defaults.autoAssign,
+  };
+}
+
 export function getDefaultManagerState(): ManagerPersistedState {
   return {
     version: 1,
@@ -220,6 +292,8 @@ export function getDefaultManagerState(): ManagerPersistedState {
       },
     ],
     audit: null,
+    missions: [],
+    aiManager: { enabled: true, autoAssign: false },
   };
 }
 
@@ -232,6 +306,7 @@ export function normalizeManagerState(raw: unknown): ManagerPersistedState {
   const clientsKeyPresent = Object.prototype.hasOwnProperty.call(o, "clients");
   const leadsKeyPresent = Object.prototype.hasOwnProperty.call(o, "leads");
   const activityKeyPresent = Object.prototype.hasOwnProperty.call(o, "activity");
+  const missionsKeyPresent = Object.prototype.hasOwnProperty.call(o, "missions");
 
   const tasksRaw = Array.isArray(o.tasks) ? o.tasks : [];
   const tasks = tasksRaw
@@ -257,6 +332,12 @@ export function normalizeManagerState(raw: unknown): ManagerPersistedState {
     .filter(Boolean)
     .slice(0, 80) as ActivityEntry[];
 
+  const missionsRaw = Array.isArray(o.missions) ? o.missions : [];
+  const missions = missionsRaw
+    .map(normalizeMission)
+    .filter(Boolean)
+    .slice(0, 500) as AgentMission[];
+
   return {
     version: 1,
     baseline: normalizeBaseline(o.baseline),
@@ -265,6 +346,8 @@ export function normalizeManagerState(raw: unknown): ManagerPersistedState {
     leads: leadsKeyPresent ? leads : base.leads,
     activity: activityKeyPresent ? activity : base.activity,
     audit: normalizeAudit(o.audit),
+    missions: missionsKeyPresent ? missions : base.missions,
+    aiManager: normalizeAIManagerConfig(o.aiManager),
   };
 }
 

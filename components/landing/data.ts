@@ -5,22 +5,10 @@ export const stats = [
 ];
 
 export const valueItems = [
-  {
-    label: "Custom Design",
-    description: "A custom site that makes your business look sharper and more trusted.",
-  },
-  {
-    label: "Fast Turnaround",
-    description: "Launch quickly so your site starts working for you instead of sitting unfinished.",
-  },
-  {
-    label: "SEO Ready",
-    description: "Built with the right structure so you can start showing up on Google.",
-  },
-  {
-    label: "Monthly Management",
-    description: "We handle updates and improvements so your site keeps bringing in leads.",
-  },
+  { label: "Custom Design", description: "Looks sharp and builds trust on the first visit." },
+  { label: "Fast Turnaround", description: "Live in days, not months." },
+  { label: "SEO Ready", description: "Structured to show up on Google from day one." },
+  { label: "Monthly Management", description: "We keep it sharp so you don't have to." },
 ];
 
 export const serviceCards = [
@@ -122,18 +110,9 @@ export const credibilityPills = [
 ];
 
 export const valueBullets = [
-  {
-    title: "Takes less than 2 minutes",
-    description: "Give us the basics and we will handle the next steps.",
-  },
-  {
-    title: "Clear plan and price",
-    description: "Know what we would build and what it costs before you commit.",
-  },
-  {
-    title: "Personal reply",
-    description: "You hear from a real person, not an automated funnel.",
-  },
+  { title: "2 minutes to submit", description: "Give us the basics and we handle the rest." },
+  { title: "Clear plan and price", description: "Know exactly what you're getting before you commit." },
+  { title: "Personal reply", description: "A real person responds, not an automated funnel." },
 ];
 
 export const faqs = [

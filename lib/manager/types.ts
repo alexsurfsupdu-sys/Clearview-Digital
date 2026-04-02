@@ -86,6 +86,51 @@ export type LeadItem = {
   createdAt: string;
 };
 
+/* -------------------------------------------------------------------------- */
+/* AI Manager Agent                                                            */
+/* -------------------------------------------------------------------------- */
+
+export type AgentSpecialty =
+  | "CodeEngineer"
+  | "Maintenance"
+  | "ErrorDetector"
+  | "EmailReviewer"
+  | "CustomerSurveyor"
+  | "ContentWriter"
+  | "SEOAnalyst"
+  | "AnalyticsAgent";
+
+export type AgentStatus = "idle" | "queued" | "active" | "paused" | "done" | "error";
+
+export type MissionLogEntry = {
+  at: string;
+  message: string;
+};
+
+export type AgentMission = {
+  id: string;
+  specialty: AgentSpecialty;
+  title: string;
+  brief: string;
+  status: AgentStatus;
+  priority: TaskPriority;
+  clientId: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  log: MissionLogEntry[];
+  output?: string;
+};
+
+export type AIManagerConfig = {
+  enabled: boolean;
+  autoAssign: boolean;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Persisted state                                                              */
+/* -------------------------------------------------------------------------- */
+
 export type ManagerPersistedState = {
   version: 1;
   baseline: Baseline;
@@ -94,4 +139,6 @@ export type ManagerPersistedState = {
   leads: LeadItem[];
   activity: ActivityEntry[];
   audit: AuditResult | null;
+  missions: AgentMission[];
+  aiManager: AIManagerConfig;
 };

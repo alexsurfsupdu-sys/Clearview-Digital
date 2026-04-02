@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   ActivityEntry,
+  AgentMission,
   AgentRole,
   AuditCheck,
   AuditResult,
@@ -18,6 +19,7 @@ import type {
   TaskPriority,
   TaskStatus,
 } from "@/lib/manager/types";
+import { AgentHub } from "./agent-hub";
 import {
   defaultBaseline,
   defaultClients,
@@ -35,6 +37,7 @@ import {
 export function ManagerDashboard() {
   const [baseline, setBaseline] = useState<Baseline>(defaultBaseline);
   const [audit, setAudit] = useState<AuditResult | null>(null);
+  const [missions, setMissions] = useState<AgentMission[]>([]);
   const [isRunningAudit, setIsRunningAudit] = useState(false);
   const [tasks, setTasks] = useState<TaskItem[]>(defaultTasks);
   const [clients, setClients] = useState<ClientAccount[]>(defaultClients);
@@ -93,6 +96,7 @@ export function ManagerDashboard() {
         setLeads(Array.isArray(data.leads) ? (data.leads as LeadItem[]) : []);
         setActivity(Array.isArray(data.activity) ? (data.activity as ActivityEntry[]) : []);
         setAudit((data.audit as AuditResult | null) ?? null);
+        setMissions(Array.isArray(data.missions) ? (data.missions as AgentMission[]) : []);
         setLoadError(null);
         skipNextSave.current = true;
         setRemoteReady(true);
@@ -124,6 +128,7 @@ export function ManagerDashboard() {
             leads,
             activity: activity.slice(0, 40),
             audit,
+            missions,
           };
           const r = await fetch("/api/manager", {
             method: "PUT",
@@ -142,7 +147,7 @@ export function ManagerDashboard() {
       })();
     }, 500);
     return () => clearTimeout(t);
-  }, [baseline, tasks, clients, leads, activity, audit, remoteReady]);
+  }, [baseline, tasks, clients, leads, activity, audit, missions, remoteReady]);
 
   const pushActivity = useCallback((label: string, tone: ActivityEntry["tone"] = "neutral") => {
     setActivity((prev) => {
@@ -701,9 +706,9 @@ export function ManagerDashboard() {
           <p className="mt-2 text-sm text-slate-600">{loadError}</p>
           <p className="mt-4 text-xs leading-relaxed text-slate-500">
             Run <code className="rounded bg-slate-100 px-1 py-0.5">npm run dev</code> from the{" "}
-            <code className="rounded bg-slate-100 px-1 py-0.5">clearview-site</code> folder. The API
+            <code className="rounded bg-slate-100 px-1 py-0.5">Clearview-Digital</code> folder. The API
             stores state under <code className="rounded bg-slate-100 px-1 py-0.5">data/manager-state.json</code>{" "}
-            (created automatically).
+            when Redis is not configured.
           </p>
           <button
             className="mt-6 rounded-lg bg-[var(--trust)] px-5 py-2.5 text-sm font-medium text-white"
@@ -743,9 +748,10 @@ export function ManagerDashboard() {
           role="alert"
         >
           <span className="font-medium">Production data will not persist reliably.</span> This deploy is
-          using the local file store. In Vercel → Storage → create/link{" "}
-          <strong>Redis (Upstash)</strong> so <code className="rounded bg-rose-100/80 px-1">UPSTASH_REDIS_*</code>{" "}
-          env vars appear, then redeploy. Manager state will then save to Redis.
+          using the local file store. In Vercel, link Redis so either{" "}
+          <code className="rounded bg-rose-100/80 px-1">UPSTASH_REDIS_*</code> or{" "}
+          <code className="rounded bg-rose-100/80 px-1">REDIS_URL</code> is present, then redeploy.
+          Manager state will then save to Redis.
         </div>
       ) : null}
       {storeMeta?.store === "redis" ? (
@@ -883,6 +889,14 @@ export function ManagerDashboard() {
             </ul>
           </div>
         </section>
+
+        {/* AI Agent Command Center */}
+        <AgentHub
+          clients={clients}
+          missions={missions}
+          onMissionsChange={setMissions}
+          onPushActivity={pushActivity}
+        />
 
         {/* Urgent */}
         <section aria-labelledby="urgent-heading">

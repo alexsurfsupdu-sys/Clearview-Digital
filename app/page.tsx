@@ -48,7 +48,7 @@ export default function Home() {
             Clearview Digital
           </div>
 
-          <h1 className="max-w-4xl text-5xl font-black leading-[0.97] tracking-[-0.07em] text-balance text-slate-950 sm:text-6xl lg:text-7xl">
+          <h1 className="max-w-4xl text-5xl font-black leading-[1.05] tracking-[-0.04em] text-balance text-slate-950 sm:text-6xl lg:text-7xl">
             Custom websites that bring you more customers.
           </h1>
 
@@ -84,9 +84,6 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <p className="mt-6 text-sm font-medium text-slate-600">
-            Trusted by service businesses that need a sharper site and more qualified inquiries.
-          </p>
         </div>
 
         <div className="relative">
@@ -180,7 +177,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl">
           <div className="max-w-[700px]">
             <p className="section-label">How it works</p>
-            <h2 className="section-heading mt-4">How it works</h2>
+            <h2 className="section-heading mt-4">Simple process, fast launch.</h2>
             <p className="section-copy mt-5">
               Transparent, fast, and built to launch within days, not months.
             </p>
@@ -328,8 +325,7 @@ export default function Home() {
 
       <section className="border-t border-slate-200 px-5 py-20 text-center sm:px-8 lg:px-10">
         <div className="mx-auto max-w-[700px]">
-          <p className="section-label justify-center">Final CTA</p>
-          <h2 className="mx-auto mt-5 text-4xl font-black leading-tight tracking-[-0.06em] text-balance text-[var(--trust)] sm:text-5xl lg:text-6xl">
+          <h2 className="mx-auto text-4xl font-black leading-[1.15] tracking-[-0.04em] text-balance text-[var(--trust)] sm:text-5xl lg:text-6xl">
             Stop sending customers to a website that doesn&apos;t work.
           </h2>
           <p className="section-copy mx-auto mt-5">
