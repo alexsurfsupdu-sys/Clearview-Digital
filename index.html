@@ -877,7 +877,7 @@ document.querySelectorAll('.lines-group').forEach(makeLineAnim);
   4. Replace YOUR_FORMSPREE_ENDPOINT below with that URL
   Free tier: 50 submissions/month — enough to start.
 */
-const FORM_ENDPOINT = 'https://formspree.io/f/YOUR_FORMSPREE_ENDPOINT';
+const FORM_ENDPOINT = 'https://formspree.io/f/xdapbvnl';
 
 const form      = document.getElementById('contactForm');
 const submitBtn = document.getElementById('cfSubmit');
@@ -912,17 +912,18 @@ form.addEventListener('submit', async e => {
   errorMsg.style.display = 'none';
 
   try {
+    const formData = new FormData();
+    formData.append('name',    nameEl.value.trim());
+    formData.append('email',   emailEl.value.trim());
+    formData.append('company', document.getElementById('cf-company').value.trim());
+    formData.append('project', projectEl.value.trim());
+    formData.append('budget',  document.getElementById('cf-budget').value);
+    formData.append('source',  document.getElementById('cf-source').value.trim());
+
     const res = await fetch(FORM_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({
-        name:    nameEl.value.trim(),
-        email:   emailEl.value.trim(),
-        company: document.getElementById('cf-company').value.trim(),
-        project: projectEl.value.trim(),
-        budget:  document.getElementById('cf-budget').value,
-        source:  document.getElementById('cf-source').value.trim(),
-      })
+      headers: { 'Accept': 'application/json' },
+      body: formData
     });
 
     if (res.ok) {
