@@ -73,6 +73,18 @@ export type ActivityEntry = {
 
 export type LeadStage = "new" | "contacted" | "qualified" | "won" | "lost";
 
+export type LeadAnalysis = {
+  analyzedAt: string;
+  summary: string;
+  businessType: string;
+  sections: string[];
+  features: string[];
+  style: string[];
+  budget: string;
+  urgency: string;
+  keyPoints: string[];
+};
+
 export type LeadItem = {
   id: string;
   name: string;
@@ -84,6 +96,7 @@ export type LeadItem = {
   notes: string;
   nextStep: string;
   createdAt: string;
+  analysis?: LeadAnalysis;
 };
 
 /* -------------------------------------------------------------------------- */

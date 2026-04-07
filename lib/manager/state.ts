@@ -9,6 +9,7 @@ import type {
   AuditResult,
   Baseline,
   ClientAccount,
+  LeadAnalysis,
   LeadItem,
   LeadStage,
   ManagerPersistedState,
@@ -129,6 +130,23 @@ function normalizeClient(raw: unknown): ClientAccount | null {
   };
 }
 
+function normalizeLeadAnalysis(raw: unknown): LeadAnalysis | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const a = raw as Partial<LeadAnalysis>;
+  if (typeof a.analyzedAt !== "string") return undefined;
+  return {
+    analyzedAt: a.analyzedAt,
+    summary: typeof a.summary === "string" ? a.summary : "",
+    businessType: typeof a.businessType === "string" ? a.businessType : "",
+    sections: Array.isArray(a.sections) ? a.sections.filter((x): x is string => typeof x === "string") : [],
+    features: Array.isArray(a.features) ? a.features.filter((x): x is string => typeof x === "string") : [],
+    style: Array.isArray(a.style) ? a.style.filter((x): x is string => typeof x === "string") : [],
+    budget: typeof a.budget === "string" ? a.budget : "",
+    urgency: typeof a.urgency === "string" ? a.urgency : "",
+    keyPoints: Array.isArray(a.keyPoints) ? a.keyPoints.filter((x): x is string => typeof x === "string") : [],
+  };
+}
+
 function normalizeLead(raw: unknown): LeadItem | null {
   if (!raw || typeof raw !== "object") return null;
   const l = raw as Partial<LeadItem>;
@@ -153,6 +171,7 @@ function normalizeLead(raw: unknown): LeadItem | null {
     notes: typeof l.notes === "string" ? l.notes : "",
     nextStep: typeof l.nextStep === "string" ? l.nextStep : "",
     createdAt: typeof l.createdAt === "string" ? l.createdAt : new Date().toISOString(),
+    analysis: normalizeLeadAnalysis(l.analysis),
   };
 }
 

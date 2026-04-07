@@ -12,6 +12,7 @@ import type {
   AuditResult,
   Baseline,
   ClientAccount,
+  LeadAnalysis,
   LeadItem,
   LeadStage,
   SectionKey,
@@ -906,6 +907,22 @@ export function ManagerDashboard() {
           missions={missions}
           onMissionsChange={setMissions}
           onPushActivity={pushActivity}
+          onRunMission={async (id: string) => {
+            const resp = await fetch(`/api/manager/missions/${id}/run`, {
+              method: "POST",
+              credentials: "include",
+            });
+            const data = (await resp.json()) as { ok?: boolean; updatedMission?: AgentMission };
+            if (data.updatedMission) {
+              setMissions((prev) =>
+                prev.map((m) => (m.id === id ? data.updatedMission! : m)),
+              );
+              pushActivity(
+                `Mission complete: "${data.updatedMission.title}" → ${data.updatedMission.specialty}`,
+                "success",
+              );
+            }
+          }}
         />
 
         {/* Urgent */}
@@ -1065,8 +1082,8 @@ export function ManagerDashboard() {
                     Leads pipeline
                   </h2>
                   <p className="mt-0.5 text-sm text-slate-600">
-                    Track inquiries and stages here. Same server store as tasks — not wired to your
-                    contact form yet.
+                    Live feed from your contact form. Each submission is auto-analyzed — expand any
+                    lead to see requirements and preview an instant wireframe mockup.
                   </p>
                 </div>
                 <button
@@ -1083,17 +1100,16 @@ export function ManagerDashboard() {
                     <tr className="border-b border-slate-100 bg-slate-50 text-[11px] font-medium uppercase tracking-wide text-slate-500">
                       <th className="px-4 py-3 font-medium">Lead</th>
                       <th className="hidden px-4 py-3 font-medium sm:table-cell">Contact</th>
-                      <th className="px-4 py-3 font-medium">Source</th>
                       <th className="px-4 py-3 font-medium">Stage</th>
                       <th className="hidden px-4 py-3 font-medium md:table-cell">Next step</th>
-                      <th className="w-20 px-4 py-3 text-right font-medium"> </th>
+                      <th className="w-32 px-4 py-3 text-right font-medium">AI Analysis</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {leads.length === 0 ? (
                       <tr>
-                        <td className="px-4 py-10 text-center text-sm text-slate-500" colSpan={6}>
-                          No leads yet. Add manually or connect the contact form later.
+                        <td className="px-4 py-10 text-center text-sm text-slate-500" colSpan={5}>
+                          No leads yet. Once someone submits the contact form, their proposal appears here with an instant AI analysis.
                         </td>
                       </tr>
                     ) : (
@@ -1753,78 +1769,189 @@ function LeadRow({
   onChange: Dispatch<SetStateAction<LeadItem[]>>;
   onRemove: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+
   function patch(p: Partial<LeadItem>) {
     onChange((prev) => prev.map((l) => (l.id === lead.id ? { ...l, ...p } : l)));
   }
 
+  async function runAnalysis() {
+    setAnalyzing(true);
+    try {
+      const r = await fetch(`/api/manager/leads/${lead.id}/analysis`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = (await r.json()) as { ok?: boolean; analysis?: LeadAnalysis };
+      if (data.analysis) {
+        patch({ analysis: data.analysis });
+        setExpanded(true);
+      }
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  const hasAnalysis = Boolean(lead.analysis);
+
   return (
-    <tr className="align-top">
-      <td className="px-4 py-3">
-        <input
-          className="w-full min-w-[6rem] border-0 bg-transparent p-0 text-sm font-medium text-slate-900 focus:ring-0"
-          onChange={(e) => patch({ name: e.target.value })}
-          placeholder="Name"
-          value={lead.name}
-        />
-        <input
-          className="mt-2 w-full border-0 bg-transparent p-0 text-xs text-slate-600 focus:ring-0"
-          onChange={(e) => patch({ business: e.target.value })}
-          placeholder="Business"
-          value={lead.business}
-        />
-      </td>
-      <td className="hidden px-4 py-3 sm:table-cell">
-        <input
-          className="w-full border-0 bg-transparent p-0 text-xs focus:ring-0"
-          onChange={(e) => patch({ email: e.target.value })}
-          placeholder="Email"
-          value={lead.email}
-        />
-        <input
-          className="mt-2 w-full border-0 bg-transparent p-0 text-xs focus:ring-0"
-          onChange={(e) => patch({ phone: e.target.value })}
-          placeholder="Phone"
-          value={lead.phone}
-        />
-      </td>
-      <td className="px-4 py-3">
-        <input
-          className="w-full border-0 bg-transparent p-0 text-xs focus:ring-0"
-          onChange={(e) => patch({ source: e.target.value })}
-          value={lead.source}
-        />
-      </td>
-      <td className="px-4 py-3">
-        <select
-          className="w-full min-w-[6.5rem] rounded-md border border-slate-200 bg-white py-1.5 pl-2 pr-4 text-xs font-medium"
-          onChange={(e) => patch({ stage: e.target.value as LeadStage })}
-          value={lead.stage}
-        >
-          {LEAD_STAGES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="hidden px-4 py-3 md:table-cell">
-        <input
-          className="w-full border-0 bg-transparent p-0 text-xs focus:ring-0"
-          onChange={(e) => patch({ nextStep: e.target.value })}
-          placeholder="Next step"
-          value={lead.nextStep}
-        />
-      </td>
-      <td className="px-4 py-3 text-right">
-        <button
-          className="text-xs font-medium text-rose-700 hover:text-rose-900"
-          onClick={onRemove}
-          type="button"
-        >
-          Remove
-        </button>
-      </td>
-    </tr>
+    <>
+      <tr className="align-top">
+        <td className="px-4 py-3">
+          <input
+            className="w-full min-w-[6rem] border-0 bg-transparent p-0 text-sm font-medium text-slate-900 focus:ring-0"
+            onChange={(e) => patch({ name: e.target.value })}
+            placeholder="Name"
+            value={lead.name}
+          />
+          <input
+            className="mt-1 w-full border-0 bg-transparent p-0 text-xs text-slate-500 focus:ring-0"
+            onChange={(e) => patch({ business: e.target.value })}
+            placeholder="Business"
+            value={lead.business}
+          />
+          <div className="mt-1 text-[10px] text-slate-400">{lead.source}</div>
+        </td>
+        <td className="hidden px-4 py-3 sm:table-cell">
+          <input
+            className="w-full border-0 bg-transparent p-0 text-xs focus:ring-0"
+            onChange={(e) => patch({ email: e.target.value })}
+            placeholder="Email"
+            value={lead.email}
+          />
+          <input
+            className="mt-2 w-full border-0 bg-transparent p-0 text-xs focus:ring-0"
+            onChange={(e) => patch({ phone: e.target.value })}
+            placeholder="Phone"
+            value={lead.phone}
+          />
+        </td>
+        <td className="px-4 py-3">
+          <select
+            className="w-full min-w-[6.5rem] rounded-md border border-slate-200 bg-white py-1.5 pl-2 pr-4 text-xs font-medium"
+            onChange={(e) => patch({ stage: e.target.value as LeadStage })}
+            value={lead.stage}
+          >
+            {LEAD_STAGES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </td>
+        <td className="hidden px-4 py-3 md:table-cell">
+          <input
+            className="w-full border-0 bg-transparent p-0 text-xs focus:ring-0"
+            onChange={(e) => patch({ nextStep: e.target.value })}
+            placeholder="Next step"
+            value={lead.nextStep}
+          />
+        </td>
+        <td className="px-4 py-3 text-right">
+          <div className="flex flex-col items-end gap-1.5">
+            {hasAnalysis ? (
+              <>
+                <button
+                  className="rounded-md bg-[var(--trust)] px-2.5 py-1.5 text-[11px] font-semibold text-white hover:opacity-90"
+                  onClick={() => setExpanded((o) => !o)}
+                  type="button"
+                >
+                  {expanded ? "Hide ▴" : "Analysis ▾"}
+                </button>
+                <a
+                  className="rounded-md border border-slate-200 px-2.5 py-1.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
+                  href={`/api/manager/leads/${lead.id}/mockup`}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  Mockup ↗
+                </a>
+              </>
+            ) : (
+              <button
+                className="rounded-md border border-[var(--trust)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--trust)] hover:bg-slate-50 disabled:opacity-50"
+                disabled={analyzing}
+                onClick={runAnalysis}
+                type="button"
+              >
+                {analyzing ? "Analyzing…" : "Analyze ✦"}
+              </button>
+            )}
+            <button
+              className="text-[11px] font-medium text-rose-600 hover:text-rose-800"
+              onClick={onRemove}
+              type="button"
+            >
+              Remove
+            </button>
+          </div>
+        </td>
+      </tr>
+      {expanded && lead.analysis && (
+        <tr>
+          <td className="bg-slate-50/80 px-4 py-4" colSpan={5}>
+            <div className="max-w-2xl space-y-3">
+              {/* Summary */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">AI Summary</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-700">{lead.analysis.summary}</p>
+              </div>
+              {/* Key points */}
+              {lead.analysis.keyPoints.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Key Points</p>
+                  <ul className="mt-1.5 space-y-1">
+                    {lead.analysis.keyPoints.map((pt, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-slate-600">
+                        <span className="mt-px shrink-0 text-[var(--trust)]">▸</span>
+                        {pt}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {/* Tags row */}
+              <div className="flex flex-wrap gap-2">
+                {lead.analysis.sections.map((s) => (
+                  <span key={s} className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-blue-800">{s}</span>
+                ))}
+                {lead.analysis.features.map((f) => (
+                  <span key={f} className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800">{f}</span>
+                ))}
+                {lead.analysis.style.map((s) => (
+                  <span key={s} className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-800">{s}</span>
+                ))}
+              </div>
+              {/* Actions */}
+              <div className="flex items-center gap-3 pt-1">
+                <a
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--trust)] px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
+                  href={`/api/manager/leads/${lead.id}/mockup`}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  Open wireframe mockup ↗
+                </a>
+                <button
+                  className="text-xs text-slate-400 hover:text-slate-600"
+                  disabled={analyzing}
+                  onClick={runAnalysis}
+                  type="button"
+                >
+                  {analyzing ? "Re-analyzing…" : "Re-analyze"}
+                </button>
+                <span className="ml-auto text-[10px] text-slate-400">
+                  Analyzed {new Date(lead.analysis.analyzedAt).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 

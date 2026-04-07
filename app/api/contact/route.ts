@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { LeadItem } from "@/lib/manager/types";
 import { readManagerState, writeManagerState } from "@/lib/manager/persist";
+import { analyzeLead } from "@/lib/manager/lead-analysis";
 import { rateLimit } from "@/lib/rate-limit";
 import { escapeHtml, sanitizeEmail, sanitizeString, sanitizeUrl } from "@/lib/sanitize";
 
@@ -57,10 +58,10 @@ export async function POST(request: Request) {
     );
   }
 
-  // Save as a new lead in the manager dashboard
+  // Save as a new lead in the manager dashboard (with AI analysis)
   try {
     const state = await readManagerState();
-    const lead: LeadItem = {
+    const leadBase: Omit<LeadItem, "analysis"> = {
       id: crypto.randomUUID(),
       name,
       business,
@@ -68,14 +69,19 @@ export async function POST(request: Request) {
       phone,
       source: "Contact Form",
       stage: "new",
-      notes: `${description}${budget ? `\n\nBudget: ${budget}` : ""}${website ? `\nWebsite: ${website}` : ""}`,
+      notes: `${description}${budget ? `\n\nBudget: ${budget}` : ""}${website ? `\nCurrent website: ${website}` : ""}`,
       nextStep: "Review proposal request and reply within 24 hours.",
       createdAt: new Date().toISOString(),
     };
+
+    // Auto-analyze proposal requirements immediately
+    const analysis = analyzeLead(leadBase);
+    const lead: LeadItem = { ...leadBase, analysis };
+
     const activity = {
       id: crypto.randomUUID(),
       at: new Date().toLocaleString(),
-      label: `New proposal request: ${name} — ${business} (${email})`,
+      label: `New proposal request: ${name} — ${business} (${email}) · AI analysis ready`,
       tone: "success" as const,
     };
     await writeManagerState({

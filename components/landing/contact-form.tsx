@@ -21,7 +21,7 @@ export function ContactForm() {
   // Honeypot field ref (must stay empty — bots fill it)
   const honeypotRef = useRef<HTMLInputElement>(null);
   // Track when the form was rendered (bot timing check)
-  const loadedAtRef = useRef<number>(Date.now());
+  const loadedAtRef = useRef<number>(0);
 
   useEffect(() => {
     loadedAtRef.current = Date.now();
