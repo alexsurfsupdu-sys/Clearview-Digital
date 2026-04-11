@@ -719,23 +719,6 @@ footer {
         </div>
 
         <div class="cf-row">
-          <label class="cf-label" for="cf-budget">
-            Rough Budget <span class="cf-optional">— optional, just helps us scope</span>
-          </label>
-          <div class="cf-select-wrap">
-            <select class="cf-select" id="cf-budget" name="budget">
-              <option value="" disabled selected>Select a range</option>
-              <option value="not-sure">Not sure yet</option>
-              <option value="under-1k">Under $1,000</option>
-              <option value="1k-3k">$1,000 – $3,000</option>
-              <option value="3k-7k">$3,000 – $7,000</option>
-              <option value="7k-plus">$7,000+</option>
-              <option value="ongoing">Ongoing / monthly</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="cf-row">
           <label class="cf-label" for="cf-source">
             How did you find me? <span class="cf-optional">— optional</span>
           </label>
@@ -745,7 +728,7 @@ footer {
 
         <div class="cf-submit-row">
           <p class="cf-note">No commitment. Just the start of a conversation.</p>
-          <button type="submit" class="cf-btn" id="cfSubmit">Send Message</button>
+          <button type="submit" class="cf-btn" id="cfSubmit">Let's Talk</button>
         </div>
 
         <p class="cf-error-msg" id="cfError">
@@ -874,7 +857,6 @@ form.addEventListener('submit', async e => {
     formData.append('email',   emailEl.value.trim());
     formData.append('company', document.getElementById('cf-company').value.trim());
     formData.append('project', projectEl.value.trim());
-    formData.append('budget',  document.getElementById('cf-budget').value);
     formData.append('source',  document.getElementById('cf-source').value.trim());
 
     const res = await fetch(FORM_ENDPOINT, {
