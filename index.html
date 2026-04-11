@@ -673,7 +673,7 @@ footer {
         <span class="line-mask"><span class="line-inner"><em>talk.</em></span></span>
       </h2>
       <p class="contact-body">
-        Drop a few details about your project or question and I'll get back to you within 24 hours. You don't need to have everything figured out yet — that's what the conversation is for.
+        Leave your info and I'll email you within 24 hours to set up a call. We'll go over everything together — no need to have it all figured out yet.
       </p>
       <div class="contact-detail">
         <span class="contact-detail-label">Response time</span>
@@ -708,14 +708,6 @@ footer {
           </label>
           <input class="cf-input" id="cf-company" name="company"
             type="text" placeholder="yourcompany.com">
-        </div>
-
-        <div class="cf-row">
-          <label class="cf-label" for="cf-project">
-            What do you need? <span class="cf-req">*</span>
-          </label>
-          <textarea class="cf-textarea" id="cf-project" name="project"
-            placeholder="A few details is enough — we can work through the rest together."></textarea>
         </div>
 
         <div class="cf-row">
@@ -824,7 +816,7 @@ const submitBtn = document.getElementById('cfSubmit');
 const errorMsg  = document.getElementById('cfError');
 const successEl = document.getElementById('cfSuccess');
 
-const required = ['cf-name', 'cf-email', 'cf-project'];
+const required = ['cf-name', 'cf-email'];
 
 function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()); }
 
@@ -839,12 +831,10 @@ form.addEventListener('submit', async e => {
 
   const nameEl    = document.getElementById('cf-name');
   const emailEl   = document.getElementById('cf-email');
-  const projectEl = document.getElementById('cf-project');
 
   let valid = true;
   if (!nameEl.value.trim())        { nameEl.classList.add('invalid');    valid = false; }
   if (!isValidEmail(emailEl.value)) { emailEl.classList.add('invalid');   valid = false; }
-  if (!projectEl.value.trim())     { projectEl.classList.add('invalid'); valid = false; }
   if (!valid) return;
 
   submitBtn.disabled = true;
@@ -856,7 +846,6 @@ form.addEventListener('submit', async e => {
     formData.append('name',    nameEl.value.trim());
     formData.append('email',   emailEl.value.trim());
     formData.append('company', document.getElementById('cf-company').value.trim());
-    formData.append('project', projectEl.value.trim());
     formData.append('source',  document.getElementById('cf-source').value.trim());
 
     const res = await fetch(FORM_ENDPOINT, {
