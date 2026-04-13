@@ -711,23 +711,6 @@ footer {
         </div>
 
         <div class="cf-row">
-          <label class="cf-label" for="cf-budget">
-            Rough Budget <span class="cf-optional">— optional, just helps us scope</span>
-          </label>
-          <div class="cf-select-wrap">
-            <select class="cf-select" id="cf-budget" name="budget">
-              <option value="" disabled selected>Select a range</option>
-              <option value="not-sure">Not sure yet</option>
-              <option value="200-400">$200 – $400</option>
-              <option value="400-600">$400 – $600</option>
-              <option value="600-800">$600 – $800</option>
-              <option value="800-1000">$800 – $1,000</option>
-              <option value="custom">Custom</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="cf-row">
           <label class="cf-label" for="cf-source">
             How did you find me? <span class="cf-optional">— optional</span>
           </label>
@@ -866,7 +849,6 @@ form.addEventListener('submit', async e => {
     formData.append('name',    nameEl.value.trim());
     formData.append('email',   emailEl.value.trim());
     formData.append('company', document.getElementById('cf-company').value.trim());
-    formData.append('budget',  document.getElementById('cf-budget').value);
     formData.append('source',  document.getElementById('cf-source').value.trim());
 
     const res = await fetch(FORM_ENDPOINT, {
